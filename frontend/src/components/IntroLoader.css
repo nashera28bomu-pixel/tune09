@@ -1,0 +1,36 @@
+.intro {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: radial-gradient(ellipse 100% 60% at 50% 30%, #241B2C 0%, var(--ink) 65%);
+  z-index: 100;
+}
+
+.intro-bars {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 120px;
+}
+
+.intro-bar {
+  width: 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--gold) 0%, var(--coral) 100%);
+  transform-origin: center;
+}
+
+.intro-wordmark {
+  font-size: 30px;
+  color: var(--text);
+}
+
+.intro-tagline {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
