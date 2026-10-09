@@ -1,0 +1,114 @@
+name: Extract Uploaded ZIP
+
+on:
+  push:
+    paths:
+      - "**.zip"
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Path to the zip file (relative to repo root). Leave blank to auto-detect all .zip files in the repo."
+        required: false
+        default: ""
+      target_dir:
+        description: "Where to extract into (relative to repo root). Leave blank to extract to repo root."
+        required: false
+        default: ""
+      delete_zip:
+        description: "Delete the zip file after extracting it?"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Determine which zip(s) to extract
+        id: find-zips
+        run: |
+          if [ -n "${{ github.event.inputs.zip_path }}" ]; then
+            echo "${{ github.event.inputs.zip_path }}" > /tmp/zip_list.txt
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            git diff --name-only --diff-filter=ACMR ${{ github.event.before }} ${{ github.sha }} \
+              | grep -i '\.zip$' > /tmp/zip_list.txt || true
+            if [ ! -s /tmp/zip_list.txt ]; then
+              find . -maxdepth 3 -iname "*.zip" -not -path "./.git/*" | sed 's|^\./||' > /tmp/zip_list.txt
+            fi
+          else
+            find . -maxdepth 3 -iname "*.zip" -not -path "./.git/*" | sed 's|^\./||' > /tmp/zip_list.txt
+          fi
+
+          if [ ! -s /tmp/zip_list.txt ]; then
+            echo "No zip files found to extract."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Zips to extract:"
+            cat /tmp/zip_list.txt
+          fi
+
+      - name: Extract each zip
+        if: steps.find-zips.outputs.found == 'true'
+        run: |
+          TARGET_DIR="${{ github.event.inputs.target_dir }}"
+          DELETE_ZIP="${{ github.event.inputs.delete_zip }}"
+          [ -z "$DELETE_ZIP" ] && DELETE_ZIP="true"
+
+          while IFS= read -r ZIP_PATH; do
+            [ -z "$ZIP_PATH" ] && continue
+            if [ ! -f "$ZIP_PATH" ]; then
+              echo "Skipping $ZIP_PATH - file not found (likely deleted in this push)."
+              continue
+            fi
+
+            echo "::group::Extracting $ZIP_PATH"
+
+            DEST="$TARGET_DIR"
+            if [ -z "$DEST" ]; then
+              DEST="$(dirname "$ZIP_PATH")"
+              [ "$DEST" = "." ] && DEST="."
+            fi
+            mkdir -p "$DEST"
+
+            TMP_DIR=$(mktemp -d)
+            unzip -q -o "$ZIP_PATH" -d "$TMP_DIR"
+
+            ENTRY_COUNT=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1 | wc -l)
+            if [ "$ENTRY_COUNT" -eq 1 ] && [ -d "$(find "$TMP_DIR" -mindepth 1 -maxdepth 1)" ]; then
+              INNER_DIR=$(find "$TMP_DIR" -mindepth 1 -maxdepth 1)
+              SRC="$INNER_DIR"
+            else
+              SRC="$TMP_DIR"
+            fi
+
+            cp -rf "$SRC"/. "$DEST"/
+            rm -rf "$TMP_DIR"
+
+            if [ "$DELETE_ZIP" = "true" ]; then
+              rm -f "$ZIP_PATH"
+              echo "Deleted $ZIP_PATH after extraction."
+            fi
+
+            echo "::endgroup::"
+          done < /tmp/zip_list.txt
+
+      - name: Commit and push extracted files
+        if: steps.find-zips.outputs.found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed after extraction, skipping commit."
+          else
+            git commit -m "chore: auto-extract uploaded zip [skip ci]"
+            git push
+          fi
