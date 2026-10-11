@@ -1,68 +1,71 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { streamUrl } from '../lib/api';
+import { videoStreamUrl } from '../lib/api';
 
+// Manages a single persistent <video> element (ref exposed as videoRef,
+// rendered once in FullPlayer and never unmounted - see FullPlayer.jsx)
+// so that minimizing/expanding the player never interrupts playback.
 export default function usePlayer() {
-  const audioRef = useRef(null);
-  const [current, setCurrent] = useState(null); // track object
+  const videoRef = useRef(null);
+  const [current, setCurrent] = useState(null);
   const [queue, setQueue] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0); // seconds
+  const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
 
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = 'metadata';
-    audioRef.current = audio;
+    const video = videoRef.current;
+    if (!video) return;
 
-    const onTime = () => setProgress(audio.currentTime);
-    const onDuration = () => setDuration(audio.duration || 0);
+    const onTime = () => setProgress(video.currentTime);
+    const onDuration = () => setDuration(video.duration || 0);
     const onWaiting = () => setIsBuffering(true);
     const onPlaying = () => setIsBuffering(false);
     const onEnded = () => playNext();
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
 
-    audio.addEventListener('timeupdate', onTime);
-    audio.addEventListener('durationchange', onDuration);
-    audio.addEventListener('waiting', onWaiting);
-    audio.addEventListener('playing', onPlaying);
-    audio.addEventListener('ended', onEnded);
+    video.addEventListener('timeupdate', onTime);
+    video.addEventListener('durationchange', onDuration);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('playing', onPlaying);
+    video.addEventListener('ended', onEnded);
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
 
     return () => {
-      audio.removeEventListener('timeupdate', onTime);
-      audio.removeEventListener('durationchange', onDuration);
-      audio.removeEventListener('waiting', onWaiting);
-      audio.removeEventListener('playing', onPlaying);
-      audio.removeEventListener('ended', onEnded);
-      audio.pause();
+      video.removeEventListener('timeupdate', onTime);
+      video.removeEventListener('durationchange', onDuration);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('playing', onPlaying);
+      video.removeEventListener('ended', onEnded);
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const play = useCallback((track, newQueue) => {
-    const audio = audioRef.current;
+    const video = videoRef.current;
+    if (!video) return;
     setCurrent(track);
     if (newQueue) setQueue(newQueue);
-    audio.src = streamUrl(track.url);
-    audio.play().catch(() => {});
-    setIsPlaying(true);
+    video.src = videoStreamUrl(track.url);
+    video.play().catch(() => {});
     setProgress(0);
   }, []);
 
   const toggle = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio.src) return;
-    if (audio.paused) {
-      audio.play().catch(() => {});
-      setIsPlaying(true);
-    } else {
-      audio.pause();
-      setIsPlaying(false);
-    }
+    const video = videoRef.current;
+    if (!video || !video.src) return;
+    if (video.paused) video.play().catch(() => {});
+    else video.pause();
   }, []);
 
   const seek = useCallback((seconds) => {
-    const audio = audioRef.current;
-    audio.currentTime = seconds;
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = seconds;
     setProgress(seconds);
   }, []);
 
@@ -72,14 +75,12 @@ export default function usePlayer() {
         const idx = prevQueue.findIndex(t => t.id === prevCurrent?.id);
         const next = prevQueue[idx + 1];
         if (next) {
-          const audio = audioRef.current;
-          audio.src = streamUrl(next.url);
-          audio.play().catch(() => {});
-          setIsPlaying(true);
+          const video = videoRef.current;
+          video.src = videoStreamUrl(next.url);
+          video.play().catch(() => {});
           setProgress(0);
           return next;
         }
-        setIsPlaying(false);
         return prevCurrent;
       });
       return prevQueue;
@@ -92,10 +93,9 @@ export default function usePlayer() {
         const idx = prevQueue.findIndex(t => t.id === prevCurrent?.id);
         const prev = prevQueue[idx - 1];
         if (prev) {
-          const audio = audioRef.current;
-          audio.src = streamUrl(prev.url);
-          audio.play().catch(() => {});
-          setIsPlaying(true);
+          const video = videoRef.current;
+          video.src = videoStreamUrl(prev.url);
+          video.play().catch(() => {});
           setProgress(0);
           return prev;
         }
@@ -105,5 +105,5 @@ export default function usePlayer() {
     });
   }, []);
 
-  return { current, isPlaying, progress, duration, isBuffering, play, toggle, seek, playNext, playPrev, queue };
+  return { videoRef, current, isPlaying, progress, duration, isBuffering, play, toggle, seek, playNext, playPrev, queue };
 }

@@ -11,6 +11,10 @@ export function streamUrl(youtubeUrl) {
   return `${BASE_URL}/api/stream/audio?url=${encodeURIComponent(youtubeUrl)}`;
 }
 
+export function videoStreamUrl(youtubeUrl) {
+  return `${BASE_URL}/api/stream/video?url=${encodeURIComponent(youtubeUrl)}`;
+}
+
 export function downloadUrl(youtubeUrl, format) {
   return `${BASE_URL}/api/download/${format}?url=${encodeURIComponent(youtubeUrl)}`;
 }

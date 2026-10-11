@@ -70,23 +70,25 @@ export default function App() {
 
           <BottomNav active={activeTab} onChange={setActiveTab} />
 
-          <AnimatePresence>
-            {isPlayerExpanded && player.current && (
-              <FullPlayer
-                track={player.current}
-                isPlaying={player.isPlaying}
-                progress={player.progress}
-                duration={player.duration}
-                isBuffering={player.isBuffering}
-                onClose={() => setIsPlayerExpanded(false)}
-                onToggle={player.toggle}
-                onSeek={player.seek}
-                onNext={player.playNext}
-                onPrev={player.playPrev}
-                onDownload={() => setDownloadTarget(player.current)}
-              />
-            )}
-          </AnimatePresence>
+          {/* Always mounted (not conditionally rendered) so the <video>
+              element inside it never unmounts - that's what keeps playback
+              running while the player is minimized. Visibility is purely
+              CSS-driven via the isExpanded prop. */}
+          <FullPlayer
+            track={player.current}
+            videoRef={player.videoRef}
+            isExpanded={isPlayerExpanded}
+            isPlaying={player.isPlaying}
+            progress={player.progress}
+            duration={player.duration}
+            isBuffering={player.isBuffering}
+            onClose={() => setIsPlayerExpanded(false)}
+            onToggle={player.toggle}
+            onSeek={player.seek}
+            onNext={player.playNext}
+            onPrev={player.playPrev}
+            onDownload={() => player.current && setDownloadTarget(player.current)}
+          />
 
           <AnimatePresence>
             {downloadTarget && (

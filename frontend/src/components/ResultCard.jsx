@@ -8,12 +8,18 @@ export default function ResultCard({ track, isPlaying, onPlay, onDownload }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      whileTap={{ scale: 0.985 }}
     >
       <button className="result-thumb" onClick={onPlay} aria-label={`Play ${track.title}`}>
         <img src={track.thumbnail} alt="" loading="lazy" />
         <span className="result-thumb-overlay">
           {isPlaying ? <PauseGlyph /> : <PlayGlyph />}
         </span>
+        {isPlaying && (
+          <span className="result-eq" aria-hidden="true">
+            <i /><i /><i />
+          </span>
+        )}
       </button>
       <button className="result-info" onClick={onPlay}>
         <p className="result-title">{track.title}</p>
@@ -27,10 +33,10 @@ export default function ResultCard({ track, isPlaying, onPlay, onDownload }) {
 }
 
 function PlayGlyph() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--ink)"><path d="M8 5v14l11-7z" /></svg>;
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ink)"><path d="M8 5v14l11-7z" /></svg>;
 }
 function PauseGlyph() {
-  return <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--ink)"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>;
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ink)"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>;
 }
 function DownloadGlyph() {
   return (
